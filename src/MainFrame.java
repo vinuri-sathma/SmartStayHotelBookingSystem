@@ -24,6 +24,15 @@ public class MainFrame extends JFrame {
         });
         JButton guestButton = new JButton("Guest");
 
+        GuestManager guestManager = new GuestManager();
+
+        guestButton.addActionListener(e -> {
+            GuestRegistrationFrame registrationFrame =
+                    new GuestRegistrationFrame(guestManager);
+            registrationFrame.setVisible(true);
+        });
+
+
 
         JPanel buttonPanel = new JPanel(new GridLayout(2, 1, 0, 15));
 
