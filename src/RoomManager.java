@@ -25,4 +25,39 @@ public class RoomManager {
         return new ArrayList<>(rooms);
     }
 
+    public boolean updateRoom(String roomId, String roomType,
+                              String bedType, double dailyRate,
+                              String status) {
+
+        for (Room room : rooms) {
+
+            if (room.getRoomId().equalsIgnoreCase(roomId)) {
+
+                room.setRoomType(roomType);
+                room.setBedType(bedType);
+                room.setDailyRate(dailyRate);
+                room.setStatus(status);
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public boolean removeRoom(String roomId) {
+
+        for (Room room : rooms) {
+
+            if (room.getRoomId().equalsIgnoreCase(roomId)) {
+                rooms.remove(room);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+
 }

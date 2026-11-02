@@ -48,4 +48,17 @@ public class Room {
             System.out.println("Invalid room status!");
         }
     }
+
+    public void setRoomType(String roomType) {
+        this.roomType = roomType;
+    }
+
+    public void setBedType(String bedType) {
+        this.bedType = bedType;
+    }
+
+    public void setDailyRate(double dailyRate) {
+        this.dailyRate = dailyRate;
+    }
+
 }

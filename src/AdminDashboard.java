@@ -17,8 +17,26 @@ public class AdminDashboard extends JFrame {
 
         JButton addRoomButton = new JButton("Add Room");
         JButton updateRoomButton = new JButton("Update Room");
+
+        updateRoomButton.addActionListener(e -> {
+            UpdateRoomFrame updateRoomFrame = new UpdateRoomFrame(roomManager);
+            updateRoomFrame.setVisible(true);
+        });
+
         JButton removeRoomButton = new JButton("Remove Room");
+
+        removeRoomButton.addActionListener(e -> {
+            RemoveRoomFrame removeRoomFrame = new RemoveRoomFrame(roomManager);
+            removeRoomFrame.setVisible(true);
+        });
+
         JButton viewRoomsButton = new JButton("View Rooms");
+
+        viewRoomsButton.addActionListener(e -> {
+            ViewRoomsFrame viewRoomsFrame = new ViewRoomsFrame(roomManager);
+            viewRoomsFrame.setVisible(true);
+        });
+
 
         // Open the Add Room form
         addRoomButton.addActionListener(e -> {
