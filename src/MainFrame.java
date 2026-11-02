@@ -24,14 +24,31 @@ public class MainFrame extends JFrame {
         });
         JButton guestButton = new JButton("Guest");
 
-        JPanel buttonPanel = new JPanel();
+
+        JPanel buttonPanel = new JPanel(new GridLayout(2, 1, 0, 15));
+
+        adminButton.setPreferredSize(new Dimension(180, 45));
+        guestButton.setPreferredSize(new Dimension(180, 45));
+
         buttonPanel.add(adminButton);
         buttonPanel.add(guestButton);
 
-        setLayout(new BorderLayout());
+        JPanel centerPanel = new JPanel();
+        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
 
-        add(welcomeLabel, BorderLayout.CENTER);
-        add(buttonPanel, BorderLayout.SOUTH);
+        welcomeLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        buttonPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        buttonPanel.setMaximumSize(new Dimension(180, 105));
+
+        centerPanel.add(Box.createVerticalGlue());
+        centerPanel.add(welcomeLabel);
+        centerPanel.add(Box.createVerticalStrut(30));
+        centerPanel.add(buttonPanel);
+        centerPanel.add(Box.createVerticalGlue());
+
+        setLayout(new BorderLayout());
+        add(centerPanel, BorderLayout.CENTER);
+
 
     }
 
