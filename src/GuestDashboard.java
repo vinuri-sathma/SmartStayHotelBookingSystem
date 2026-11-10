@@ -1,10 +1,9 @@
-
 import javax.swing.*;
 import java.awt.*;
 
 public class GuestDashboard extends JFrame {
 
-    public GuestDashboard(Guest guest) {
+    public GuestDashboard(Guest guest, RoomManager roomManager) {
 
         setTitle("SmartStay - Guest Dashboard");
         setSize(600, 450);
@@ -33,6 +32,44 @@ public class GuestDashboard extends JFrame {
 
         JButton cancelBookingButton =
                 new JButton("Cancel Booking");
+
+        // Open Search Available Rooms window
+        searchRoomsButton.addActionListener(e -> {
+
+            SearchRoomsFrame searchRoomsFrame =
+                    new SearchRoomsFrame(roomManager);
+
+            searchRoomsFrame.setVisible(true);
+        });
+
+        // Open Book a Room window
+        bookRoomButton.addActionListener(e -> {
+
+            BookingManager bookingManager =
+                    new BookingManager();
+
+            BookingFrame bookingFrame =
+                    new BookingFrame(
+                            roomManager,
+                            bookingManager,
+                            guest
+                    );
+
+            bookingFrame.setVisible(true);
+        });
+
+
+        // Open View My Bookings window
+        viewBookingsButton.addActionListener(e -> {
+
+            ViewBookingsFrame viewBookingsFrame =
+                    new ViewBookingsFrame(
+                            guest,
+                            roomManager
+                    );
+
+            viewBookingsFrame.setVisible(true);
+        });
 
         buttonPanel.add(searchRoomsButton);
         buttonPanel.add(bookRoomButton);

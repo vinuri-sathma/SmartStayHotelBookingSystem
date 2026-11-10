@@ -4,14 +4,17 @@ import java.awt.*;
 
 public class GuestRegistrationFrame extends JFrame {
 
-    public GuestRegistrationFrame(GuestManager guestManager) {
+
+    public GuestRegistrationFrame(GuestManager guestManager,
+                                  RoomManager roomManager) {
+
 
         setTitle("SmartStay - Guest Registration");
-        setSize(500, 350);
+        setSize(500, 450);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        JPanel panel = new JPanel(new GridLayout(6, 2, 10, 15));
+        JPanel panel = new JPanel(new GridLayout(8, 2, 10, 15));
         panel.setBorder(
                 BorderFactory.createEmptyBorder(25, 25, 25, 25)
         );
@@ -25,6 +28,8 @@ public class GuestRegistrationFrame extends JFrame {
         JTextField fullNameField = new JTextField();
         JTextField contactField = new JTextField();
         JTextField emailField = new JTextField();
+        JPasswordField passwordField = new JPasswordField();
+        JPasswordField confirmPasswordField = new JPasswordField();
 
         JButton registerButton = new JButton("Register");
 
@@ -42,6 +47,12 @@ public class GuestRegistrationFrame extends JFrame {
 
         panel.add(new JLabel("Email:"));
         panel.add(emailField);
+
+        panel.add(new JLabel("Password:"));
+        panel.add(passwordField);
+
+        panel.add(new JLabel("Confirm Password:"));
+        panel.add(confirmPasswordField);
 
         panel.add(new JLabel(""));
         panel.add(registerButton);
@@ -94,26 +105,63 @@ public class GuestRegistrationFrame extends JFrame {
                 }
             }
 
+
+            char[] passwordChars = passwordField.getPassword();
+            char[] confirmChars = confirmPasswordField.getPassword();
+
+            try {
+                if (passwordChars.length < 8) {
+                    JOptionPane.showMessageDialog(this,
+                            "Password must contain at least 8 characters.");
+                    return;
+                }
+
+                if (!java.util.Arrays.equals(
+                        passwordChars, confirmChars)) {
+
+                    JOptionPane.showMessageDialog(this,
+                            "Passwords do not match.");
+                    return;
+                }
+
+            } finally {
+                java.util.Arrays.fill(confirmChars, '\0');
+                java.util.Arrays.fill(passwordChars, '\0');
+            }
+
             Guest guest = new Guest(
                     guestId, fullName, contact, email
             );
 
-            boolean registered = guestManager.registerGuest(guest);
+
+            char[] password = passwordField.getPassword();
+
+            String passwordHash;
+
+            try {
+                passwordHash = PasswordUtil.hashPassword(password);
+            } finally {
+                java.util.Arrays.fill(password, '\0');
+            }
+
+            boolean registered =
+                    guestManager.registerGuest(guest, passwordHash);
+
+
 
             if (registered) {
                 JOptionPane.showMessageDialog(this,
                         "Registration successful!");
 
-                // Open Guest Dashboard
-                GuestDashboard dashboard = new GuestDashboard(guest);
+                GuestDashboard dashboard = new GuestDashboard(guest, roomManager);
                 dashboard.setVisible(true);
 
                 dispose();
-
             } else {
                 JOptionPane.showMessageDialog(this,
                         "Guest ID already registered!");
             }
+
         });
     }
 }
