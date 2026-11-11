@@ -201,5 +201,32 @@ public class BookingDAO {
 
         return bookings;
     }
+    // Cancel a confirmed booking belonging to the logged-in guest
+    public boolean cancelBooking(int bookingId, String guestId) {
+
+        String sql = "UPDATE bookings " +
+                "SET booking_status = 'Cancelled' " +
+                "WHERE booking_id = ? " +
+                "AND guest_id = ? " +
+                "AND booking_status = 'Confirmed' " +
+                "AND TIMESTAMP(check_in) > DATE_ADD(NOW(), INTERVAL 24 HOUR)";
+
+        try (Connection connection =
+                     DatabaseConnection.getConnection();
+             PreparedStatement statement =
+                     connection.prepareStatement(sql)) {
+
+            statement.setInt(1, bookingId);
+            statement.setString(2, guestId);
+
+            return statement.executeUpdate() == 1;
+
+        } catch (SQLException e) {
+            System.out.println(
+                    "Error cancelling booking: " + e.getMessage()
+            );
+            return false;
+        }
+    }
 
 }

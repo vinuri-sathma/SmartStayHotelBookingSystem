@@ -76,6 +76,14 @@ public class GuestDashboard extends JFrame {
         buttonPanel.add(viewBookingsButton);
         buttonPanel.add(cancelBookingButton);
 
+        cancelBookingButton.addActionListener(e -> {
+            CancelBookingFrame cancelFrame =
+                    new CancelBookingFrame(guest, roomManager);
+
+            cancelFrame.setVisible(true);
+        });
+
+
         buttonPanel.setPreferredSize(new Dimension(220, 220));
 
         JPanel centerPanel = new JPanel(new GridBagLayout());
