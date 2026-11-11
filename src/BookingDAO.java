@@ -6,7 +6,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
-import java.sql.*;
 
 public class BookingDAO {
 
@@ -229,7 +228,7 @@ public class BookingDAO {
         }
     }
 
-    // Search bookings by Booking ID or Guest Name
+    // Search all bookings by Booking ID or Guest Name (Admin)
     public List<Object[]> searchBookings(
             String searchType,
             String searchValue) {
@@ -305,7 +304,9 @@ public class BookingDAO {
         return results;
     }
 
-    public List<Object[]> getBookingsByCheckInDate(LocalDate checkInDate) {
+    // Search all bookings by check-in date (Admin)
+    public List<Object[]> getBookingsByCheckInDate(
+            LocalDate checkInDate) {
 
         List<Object[]> results = new ArrayList<>();
 
@@ -317,12 +318,17 @@ public class BookingDAO {
                 "WHERE b.check_in = ? " +
                 "ORDER BY b.booking_id";
 
-        try (Connection connection = DatabaseConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection connection =
+                     DatabaseConnection.getConnection();
+             PreparedStatement statement =
+                     connection.prepareStatement(sql)) {
 
-            statement.setDate(1, java.sql.Date.valueOf(checkInDate));
+            statement.setDate(
+                    1, java.sql.Date.valueOf(checkInDate)
+            );
 
-            try (ResultSet resultSet = statement.executeQuery()) {
+            try (ResultSet resultSet =
+                         statement.executeQuery()) {
 
                 while (resultSet.next()) {
 
@@ -349,4 +355,84 @@ public class BookingDAO {
         return results;
     }
 
+    // Search bookings belonging only to the logged-in guest
+    public List<Object[]> searchMyBookings(
+            String guestId,
+            String searchType,
+            String searchValue) {
+
+        List<Object[]> results = new ArrayList<>();
+
+        String sql = "SELECT b.booking_id, g.full_name, " +
+                "b.room_id, b.check_in, b.check_out, " +
+                "b.number_of_guests, b.booking_status " +
+                "FROM bookings b " +
+                "JOIN guests g ON b.guest_id = g.guest_id " +
+                "WHERE b.guest_id = ? ";
+
+        if ("Booking ID".equals(searchType)) {
+            sql += "AND b.booking_id = ?";
+        } else if ("Guest Name".equals(searchType)) {
+            sql += "AND g.full_name LIKE ?";
+        } else {
+            return results;
+        }
+
+        sql += " ORDER BY b.check_in DESC";
+
+        try (Connection connection =
+                     DatabaseConnection.getConnection();
+             PreparedStatement statement =
+                     connection.prepareStatement(sql)) {
+
+            // Restrict results to the logged-in guest
+            statement.setString(1, guestId);
+
+            if ("Booking ID".equals(searchType)) {
+
+                int bookingId =
+                        Integer.parseInt(searchValue.trim());
+
+                statement.setInt(2, bookingId);
+
+            } else {
+
+                statement.setString(
+                        2, "%" + searchValue.trim() + "%"
+                );
+            }
+
+            try (ResultSet resultSet =
+                         statement.executeQuery()) {
+
+                while (resultSet.next()) {
+
+                    Object[] row = {
+                            resultSet.getInt("booking_id"),
+                            resultSet.getString("full_name"),
+                            resultSet.getString("room_id"),
+                            resultSet.getDate("check_in"),
+                            resultSet.getDate("check_out"),
+                            resultSet.getInt("number_of_guests"),
+                            resultSet.getString("booking_status")
+                    };
+
+                    results.add(row);
+                }
+            }
+
+        } catch (NumberFormatException e) {
+
+            System.out.println("Invalid Booking ID.");
+
+        } catch (SQLException e) {
+
+            System.out.println(
+                    "Error searching guest bookings: " +
+                            e.getMessage()
+            );
+        }
+
+        return results;
+    }
 }

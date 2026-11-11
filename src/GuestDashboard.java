@@ -18,7 +18,7 @@ public class GuestDashboard extends JFrame {
         welcomeLabel.setFont(new Font("Arial", Font.BOLD, 20));
 
         JPanel buttonPanel = new JPanel(
-                new GridLayout(4, 1, 0, 15)
+                new GridLayout(6, 1, 0, 15)
         );
 
         JButton searchRoomsButton =
@@ -32,6 +32,9 @@ public class GuestDashboard extends JFrame {
 
         JButton cancelBookingButton =
                 new JButton("Cancel Booking");
+
+        JButton searchMyBookingsButton =
+                new JButton("Search My Bookings");
 
         // Open Search Available Rooms window
         searchRoomsButton.addActionListener(e -> {
@@ -75,6 +78,7 @@ public class GuestDashboard extends JFrame {
         buttonPanel.add(bookRoomButton);
         buttonPanel.add(viewBookingsButton);
         buttonPanel.add(cancelBookingButton);
+        buttonPanel.add(searchMyBookingsButton);
 
         cancelBookingButton.addActionListener(e -> {
             CancelBookingFrame cancelFrame =
@@ -83,8 +87,15 @@ public class GuestDashboard extends JFrame {
             cancelFrame.setVisible(true);
         });
 
+        searchMyBookingsButton.addActionListener(e -> {
 
-        buttonPanel.setPreferredSize(new Dimension(220, 220));
+            SearchMyBookingsFrame searchFrame =
+                    new SearchMyBookingsFrame(guest);
+
+            searchFrame.setVisible(true);
+        });
+
+        buttonPanel.setPreferredSize(new Dimension(250, 340));
 
         JPanel centerPanel = new JPanel(new GridBagLayout());
         centerPanel.add(buttonPanel);
