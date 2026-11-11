@@ -7,7 +7,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
 
-
 public class BookingDAO {
 
     // Check if a room has overlapping bookings
@@ -49,8 +48,7 @@ public class BookingDAO {
                             + e.getMessage()
             );
 
-            // Prevent booking when availability
-            // cannot be verified
+            // Prevent booking when availability cannot be verified
             return true;
         }
 
@@ -201,6 +199,7 @@ public class BookingDAO {
 
         return bookings;
     }
+
     // Cancel a confirmed booking belonging to the logged-in guest
     public boolean cancelBooking(int bookingId, String guestId) {
 
@@ -229,4 +228,79 @@ public class BookingDAO {
         }
     }
 
+    // Search bookings by Booking ID or Guest Name
+    public List<Object[]> searchBookings(
+            String searchType,
+            String searchValue) {
+
+        List<Object[]> results = new ArrayList<>();
+
+        String sql;
+
+        if ("Booking ID".equals(searchType)) {
+            sql = "SELECT b.booking_id, g.full_name, " +
+                    "b.room_id, b.check_in, b.check_out, " +
+                    "b.number_of_guests, b.booking_status " +
+                    "FROM bookings b " +
+                    "JOIN guests g ON b.guest_id = g.guest_id " +
+                    "WHERE b.booking_id = ?";
+        } else if ("Guest Name".equals(searchType)) {
+            sql = "SELECT b.booking_id, g.full_name, " +
+                    "b.room_id, b.check_in, b.check_out, " +
+                    "b.number_of_guests, b.booking_status " +
+                    "FROM bookings b " +
+                    "JOIN guests g ON b.guest_id = g.guest_id " +
+                    "WHERE g.full_name LIKE ? " +
+                    "ORDER BY b.check_in DESC";
+        } else {
+            return results;
+        }
+
+        try (Connection connection =
+                     DatabaseConnection.getConnection();
+             PreparedStatement statement =
+                     connection.prepareStatement(sql)) {
+
+            if ("Booking ID".equals(searchType)) {
+
+                int bookingId = Integer.parseInt(searchValue.trim());
+                statement.setInt(1, bookingId);
+
+            } else {
+
+                statement.setString(
+                        1, "%" + searchValue.trim() + "%"
+                );
+            }
+
+            try (ResultSet resultSet =
+                         statement.executeQuery()) {
+
+                while (resultSet.next()) {
+
+                    Object[] row = {
+                            resultSet.getInt("booking_id"),
+                            resultSet.getString("full_name"),
+                            resultSet.getString("room_id"),
+                            resultSet.getDate("check_in"),
+                            resultSet.getDate("check_out"),
+                            resultSet.getInt("number_of_guests"),
+                            resultSet.getString("booking_status")
+                    };
+
+                    results.add(row);
+                }
+            }
+
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid Booking ID.");
+
+        } catch (SQLException e) {
+            System.out.println(
+                    "Error searching bookings: " + e.getMessage()
+            );
+        }
+
+        return results;
+    }
 }

@@ -15,12 +15,13 @@ public class AdminDashboard extends JFrame {
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        JPanel panel = new JPanel(new GridLayout(4, 1, 0, 15));
+        JPanel panel = new JPanel(new GridLayout(5, 1, 0, 15));
 
         JButton addRoomButton = new JButton("Add Room");
         JButton updateRoomButton = new JButton("Update Room");
         JButton removeRoomButton = new JButton("Remove Room");
         JButton viewRoomsButton = new JButton("View Rooms");
+        JButton searchBookingsButton = new JButton("Search Bookings");
 
         // Add Room
         addRoomButton.addActionListener(e -> {
@@ -46,12 +47,21 @@ public class AdminDashboard extends JFrame {
             viewRoomsFrame.setVisible(true);
         });
 
+        // Search Bookings
+        searchBookingsButton.addActionListener(e -> {
+            SearchBookingsFrame searchFrame =
+                    new SearchBookingsFrame();
+
+            searchFrame.setVisible(true);
+        });
+
         panel.add(addRoomButton);
         panel.add(updateRoomButton);
         panel.add(removeRoomButton);
         panel.add(viewRoomsButton);
+        panel.add(searchBookingsButton);
 
-        panel.setPreferredSize(new Dimension(200, 220));
+        panel.setPreferredSize(new Dimension(220, 300));
 
         setLayout(new GridBagLayout());
         add(panel);
