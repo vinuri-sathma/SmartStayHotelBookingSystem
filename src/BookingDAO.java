@@ -47,158 +47,156 @@ public class BookingDAO {
                     "Error checking booking availability: "
                             + e.getMessage()
             );
-
-            // Prevent booking when availability cannot be verified
             return true;
         }
 
         return false;
     }
 
-    // Save a new booking to MySQL
+
+    // Save a new booking safely using a database transaction
     public boolean addBooking(Booking booking) {
 
-        String sql = "INSERT INTO bookings " +
-                "(guest_id, room_id, check_in, check_out, " +
-                "number_of_guests, booking_status) " +
-                "VALUES (?, ?, ?, ?, ?, ?)";
-
-        try (Connection connection =
-                     DatabaseConnection.getConnection();
-             PreparedStatement statement =
-                     connection.prepareStatement(
-                             sql,
-                             Statement.RETURN_GENERATED_KEYS
-                     )) {
-
-            statement.setString(
-                    1, booking.getGuest().getGuestId()
-            );
-
-            statement.setString(
-                    2, booking.getRoom().getRoomId()
-            );
-
-            statement.setDate(
-                    3,
-                    java.sql.Date.valueOf(
-                            booking.getCheckInDate()
-                    )
-            );
-
-            statement.setDate(
-                    4,
-                    java.sql.Date.valueOf(
-                            booking.getCheckOutDate()
-                    )
-            );
-
-            statement.setInt(
-                    5, booking.getNumberOfGuests()
-            );
-
-            statement.setString(
-                    6, booking.getBookingStatus()
-            );
-
-            int rowsInserted = statement.executeUpdate();
-
-            if (rowsInserted > 0) {
-
-                try (ResultSet generatedKeys =
-                             statement.getGeneratedKeys()) {
-
-                    if (generatedKeys.next()) {
-                        booking.setBookingId(
-                                generatedKeys.getInt(1)
-                        );
-                    }
-                }
-
-                return true;
-            }
-
-        } catch (SQLException e) {
-
-            System.out.println(
-                    "Error saving booking: " + e.getMessage()
-            );
+        if (booking == null ||
+                booking.getGuest() == null ||
+                booking.getRoom() == null ||
+                booking.getCheckInDate() == null ||
+                booking.getCheckOutDate() == null ||
+                booking.getNumberOfGuests() <= 0 ||
+                booking.getCheckInDate().isBefore(
+                        LocalDate.now().plusDays(2)) ||
+                !booking.getCheckOutDate().isAfter(
+                        booking.getCheckInDate())) {
+            return false;
         }
 
-        return false;
-    }
+        String lockSql =
+                "SELECT status FROM rooms " +
+                        "WHERE room_id = ? FOR UPDATE";
 
-    // Retrieve bookings belonging to a specific guest
-    public List<Booking> getBookingsByGuestId(
-            Guest guest,
-            RoomManager roomManager) {
+        String overlapSql =
+                "SELECT COUNT(*) FROM bookings " +
+                        "WHERE room_id = ? " +
+                        "AND booking_status = 'Confirmed' " +
+                        "AND check_in < ? AND check_out > ?";
 
-        List<Booking> bookings = new ArrayList<>();
-
-        String sql = "SELECT * FROM bookings " +
-                "WHERE guest_id = ? " +
-                "ORDER BY check_in DESC";
+        String insertSql =
+                "INSERT INTO bookings " +
+                        "(guest_id, room_id, check_in, check_out, " +
+                        "number_of_guests, booking_status) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)";
 
         try (Connection connection =
-                     DatabaseConnection.getConnection();
-             PreparedStatement statement =
-                     connection.prepareStatement(sql)) {
+                     DatabaseConnection.getConnection()) {
 
-            statement.setString(1, guest.getGuestId());
+            connection.setAutoCommit(false);
 
-            try (ResultSet resultSet =
-                         statement.executeQuery()) {
+            try {
+                // Lock the room before checking availability
+                try (PreparedStatement statement =
+                             connection.prepareStatement(lockSql)) {
 
-                while (resultSet.next()) {
+                    statement.setString(
+                            1, booking.getRoom().getRoomId()
+                    );
 
-                    String roomId =
-                            resultSet.getString("room_id");
+                    try (ResultSet rs = statement.executeQuery()) {
 
-                    Room selectedRoom = null;
-
-                    for (Room room : roomManager.getAllRooms()) {
-                        if (room.getRoomId().equals(roomId)) {
-                            selectedRoom = room;
-                            break;
+                        if (!rs.next() ||
+                                !"Available".equalsIgnoreCase(
+                                        rs.getString("status"))) {
+                            connection.rollback();
+                            return false;
                         }
                     }
+                }
 
-                    if (selectedRoom == null) {
-                        System.out.println(
-                                "Room not found: " + roomId
-                        );
-                        continue;
+                // Check for overlapping confirmed bookings
+                try (PreparedStatement statement =
+                             connection.prepareStatement(overlapSql)) {
+
+                    statement.setString(
+                            1, booking.getRoom().getRoomId()
+                    );
+                    statement.setDate(
+                            2, java.sql.Date.valueOf(
+                                    booking.getCheckOutDate())
+                    );
+                    statement.setDate(
+                            3, java.sql.Date.valueOf(
+                                    booking.getCheckInDate())
+                    );
+
+                    try (ResultSet rs = statement.executeQuery()) {
+                        if (!rs.next() || rs.getInt(1) > 0) {
+                            connection.rollback();
+                            return false;
+                        }
+                    }
+                }
+
+                // Insert booking while holding the room lock
+                try (PreparedStatement statement =
+                             connection.prepareStatement(
+                                     insertSql,
+                                     Statement.RETURN_GENERATED_KEYS)) {
+
+                    statement.setString(
+                            1, booking.getGuest().getGuestId()
+                    );
+                    statement.setString(
+                            2, booking.getRoom().getRoomId()
+                    );
+                    statement.setDate(
+                            3, java.sql.Date.valueOf(
+                                    booking.getCheckInDate())
+                    );
+                    statement.setDate(
+                            4, java.sql.Date.valueOf(
+                                    booking.getCheckOutDate())
+                    );
+                    statement.setInt(
+                            5, booking.getNumberOfGuests()
+                    );
+                    statement.setString(6, "Confirmed");
+
+                    if (statement.executeUpdate() != 1) {
+                        connection.rollback();
+                        return false;
                     }
 
-                    Booking booking = new Booking(
-                            guest,
-                            selectedRoom,
-                            resultSet.getDate("check_in").toLocalDate(),
-                            resultSet.getDate("check_out").toLocalDate(),
-                            resultSet.getInt("number_of_guests")
-                    );
-
-                    booking.setBookingId(
-                            resultSet.getInt("booking_id")
-                    );
-
-                    booking.setBookingStatus(
-                            resultSet.getString("booking_status")
-                    );
-
-                    bookings.add(booking);
+                    try (ResultSet keys =
+                                 statement.getGeneratedKeys()) {
+                        if (!keys.next()) {
+                            connection.rollback();
+                            return false;
+                        }
+                        booking.setBookingId(keys.getInt(1));
+                    }
                 }
+
+                connection.commit();
+                return true;
+
+            } catch (SQLException e) {
+                connection.rollback();
+                System.out.println(
+                        "Error saving booking: " + e.getMessage()
+                );
+                return false;
+
+            } finally {
+                connection.setAutoCommit(true);
             }
 
         } catch (SQLException e) {
             System.out.println(
-                    "Error loading guest bookings: " +
-                            e.getMessage()
+                    "Database error: " + e.getMessage()
             );
+            return false;
         }
-
-        return bookings;
     }
+
 
     // Cancel a confirmed booking belonging to the logged-in guest
     public boolean cancelBooking(int bookingId, String guestId) {
@@ -263,11 +261,12 @@ public class BookingDAO {
 
             if ("Booking ID".equals(searchType)) {
 
-                int bookingId = Integer.parseInt(searchValue.trim());
+                int bookingId =
+                        Integer.parseInt(searchValue.trim());
+
                 statement.setInt(1, bookingId);
 
             } else {
-
                 statement.setString(
                         1, "%" + searchValue.trim() + "%"
                 );
@@ -385,7 +384,6 @@ public class BookingDAO {
              PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
-            // Restrict results to the logged-in guest
             statement.setString(1, guestId);
 
             if ("Booking ID".equals(searchType)) {
@@ -396,7 +394,6 @@ public class BookingDAO {
                 statement.setInt(2, bookingId);
 
             } else {
-
                 statement.setString(
                         2, "%" + searchValue.trim() + "%"
                 );
@@ -422,11 +419,9 @@ public class BookingDAO {
             }
 
         } catch (NumberFormatException e) {
-
             System.out.println("Invalid Booking ID.");
 
         } catch (SQLException e) {
-
             System.out.println(
                     "Error searching guest bookings: " +
                             e.getMessage()
@@ -435,4 +430,261 @@ public class BookingDAO {
 
         return results;
     }
+
+
+    // Modify a confirmed booking belonging to the guest
+    public boolean updateBooking(
+            int bookingId,
+            String guestId,
+            LocalDate newCheckIn,
+            LocalDate newCheckOut,
+            int newNumberOfGuests) {
+
+        if (bookingId <= 0 ||
+                guestId == null || guestId.isBlank() ||
+                newCheckIn == null || newCheckOut == null ||
+                newNumberOfGuests <= 0 ||
+                newCheckIn.isBefore(LocalDate.now().plusDays(2)) ||
+                !newCheckOut.isAfter(newCheckIn)) {
+            return false;
+        }
+
+        String findBookingSql =
+                "SELECT room_id FROM bookings " +
+                        "WHERE booking_id = ? AND guest_id = ?";
+
+        String lockRoomSql =
+                "SELECT status FROM rooms " +
+                        "WHERE room_id = ? FOR UPDATE";
+
+        String lockBookingSql =
+                "SELECT check_in, booking_status FROM bookings " +
+                        "WHERE booking_id = ? AND guest_id = ? " +
+                        "FOR UPDATE";
+
+        String overlapSql =
+                "SELECT COUNT(*) FROM bookings " +
+                        "WHERE room_id = ? " +
+                        "AND booking_id <> ? " +
+                        "AND booking_status = 'Confirmed' " +
+                        "AND check_in < ? AND check_out > ?";
+
+        String updateSql =
+                "UPDATE bookings SET check_in = ?, " +
+                        "check_out = ?, number_of_guests = ? " +
+                        "WHERE booking_id = ? AND guest_id = ? " +
+                        "AND booking_status = 'Confirmed'";
+
+        try (Connection connection =
+                     DatabaseConnection.getConnection()) {
+
+            connection.setAutoCommit(false);
+
+            try {
+                String roomId;
+
+                // Find the room belonging to this booking
+                try (PreparedStatement statement =
+                             connection.prepareStatement(findBookingSql)) {
+
+                    statement.setInt(1, bookingId);
+                    statement.setString(2, guestId);
+
+                    try (ResultSet rs = statement.executeQuery()) {
+
+                        if (!rs.next()) {
+                            connection.rollback();
+                            return false;
+                        }
+
+                        roomId = rs.getString("room_id");
+                    }
+                }
+
+                // Lock the room first
+                try (PreparedStatement statement =
+                             connection.prepareStatement(lockRoomSql)) {
+
+                    statement.setString(1, roomId);
+
+                    try (ResultSet rs = statement.executeQuery()) {
+
+                        if (!rs.next() ||
+                                !"Available".equalsIgnoreCase(
+                                        rs.getString("status"))) {
+
+                            connection.rollback();
+                            return false;
+                        }
+                    }
+                }
+
+                // Lock and verify the booking
+                try (PreparedStatement statement =
+                             connection.prepareStatement(lockBookingSql)) {
+
+                    statement.setInt(1, bookingId);
+                    statement.setString(2, guestId);
+
+                    try (ResultSet rs = statement.executeQuery()) {
+
+                        if (!rs.next() ||
+                                !"Confirmed".equalsIgnoreCase(
+                                        rs.getString("booking_status"))) {
+
+                            connection.rollback();
+                            return false;
+                        }
+
+                        LocalDate originalCheckIn =
+                                rs.getDate("check_in").toLocalDate();
+
+                        if (!originalCheckIn.atStartOfDay().isAfter(
+                                java.time.LocalDateTime.now()
+                                        .plusHours(24))) {
+
+                            connection.rollback();
+                            return false;
+                        }
+                    }
+                }
+
+                // Check overlapping bookings
+                try (PreparedStatement statement =
+                             connection.prepareStatement(overlapSql)) {
+
+                    statement.setString(1, roomId);
+                    statement.setInt(2, bookingId);
+                    statement.setDate(
+                            3, java.sql.Date.valueOf(newCheckOut)
+                    );
+                    statement.setDate(
+                            4, java.sql.Date.valueOf(newCheckIn)
+                    );
+
+                    try (ResultSet rs = statement.executeQuery()) {
+
+                        if (!rs.next() || rs.getInt(1) > 0) {
+                            connection.rollback();
+                            return false;
+                        }
+                    }
+                }
+
+                // Update booking details
+                try (PreparedStatement statement =
+                             connection.prepareStatement(updateSql)) {
+
+                    statement.setDate(
+                            1, java.sql.Date.valueOf(newCheckIn)
+                    );
+                    statement.setDate(
+                            2, java.sql.Date.valueOf(newCheckOut)
+                    );
+                    statement.setInt(3, newNumberOfGuests);
+                    statement.setInt(4, bookingId);
+                    statement.setString(5, guestId);
+
+                    if (statement.executeUpdate() != 1) {
+                        connection.rollback();
+                        return false;
+                    }
+                }
+
+                connection.commit();
+                return true;
+
+            } catch (SQLException e) {
+
+                connection.rollback();
+
+                System.out.println(
+                        "Error modifying booking: " + e.getMessage()
+                );
+
+                return false;
+
+            } finally {
+                connection.setAutoCommit(true);
+            }
+
+        } catch (SQLException e) {
+
+            System.out.println(
+                    "Database error: " + e.getMessage()
+            );
+
+            return false;
+        }
+    }
+
+
+    // Retrieve bookings belonging to a specific guest
+    public List<Booking> getBookingsByGuestId(
+            Guest guest,
+            RoomManager roomManager) {
+
+        List<Booking> bookings = new ArrayList<>();
+
+        String sql = "SELECT * FROM bookings " +
+                "WHERE guest_id = ? " +
+                "ORDER BY check_in DESC";
+
+        try (Connection connection =
+                     DatabaseConnection.getConnection();
+             PreparedStatement statement =
+                     connection.prepareStatement(sql)) {
+
+            statement.setString(1, guest.getGuestId());
+
+            try (ResultSet resultSet =
+                         statement.executeQuery()) {
+
+                while (resultSet.next()) {
+
+                    String roomId =
+                            resultSet.getString("room_id");
+
+                    Room selectedRoom = null;
+
+                    for (Room room : roomManager.getAllRooms()) {
+                        if (room.getRoomId().equals(roomId)) {
+                            selectedRoom = room;
+                            break;
+                        }
+                    }
+
+                    if (selectedRoom == null) {
+                        continue;
+                    }
+
+                    Booking booking = new Booking(
+                            guest,
+                            selectedRoom,
+                            resultSet.getDate("check_in").toLocalDate(),
+                            resultSet.getDate("check_out").toLocalDate(),
+                            resultSet.getInt("number_of_guests")
+                    );
+
+                    booking.setBookingId(
+                            resultSet.getInt("booking_id")
+                    );
+
+                    booking.setBookingStatus(
+                            resultSet.getString("booking_status")
+                    );
+
+                    bookings.add(booking);
+                }
+            }
+
+        } catch (SQLException e) {
+            System.out.println(
+                    "Error loading guest bookings: " + e.getMessage()
+            );
+        }
+
+        return bookings;
+    }
+
 }

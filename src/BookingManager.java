@@ -63,5 +63,45 @@ public class BookingManager {
 
         // Save booking to MySQL
         return bookingDAO.addBooking(booking);
+
     }
+
+    // Modify an existing booking
+    public boolean modifyBooking(
+            int bookingId,
+            String guestId,
+            LocalDate newCheckIn,
+            LocalDate newCheckOut,
+            int newNumberOfGuests) {
+
+        // Validate booking details
+        if (bookingId <= 0 ||
+                guestId == null || guestId.isBlank() ||
+                newCheckIn == null ||
+                newCheckOut == null ||
+                newNumberOfGuests <= 0) {
+            return false;
+        }
+
+        // Check minimum advance booking period
+        if (newCheckIn.isBefore(LocalDate.now().plusDays(2))) {
+            return false;
+        }
+
+        // Check date order
+        if (!newCheckOut.isAfter(newCheckIn)) {
+            return false;
+        }
+
+        // DAO verifies ownership, status,
+        // modification deadline and date overlaps
+        return bookingDAO.updateBooking(
+                bookingId,
+                guestId,
+                newCheckIn,
+                newCheckOut,
+                newNumberOfGuests
+        );
+    }
+
 }
