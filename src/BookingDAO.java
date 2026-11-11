@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
+import java.sql.*;
 
 public class BookingDAO {
 
@@ -303,4 +304,49 @@ public class BookingDAO {
 
         return results;
     }
+
+    public List<Object[]> getBookingsByCheckInDate(LocalDate checkInDate) {
+
+        List<Object[]> results = new ArrayList<>();
+
+        String sql = "SELECT b.booking_id, g.full_name, " +
+                "b.room_id, b.check_in, b.check_out, " +
+                "b.number_of_guests, b.booking_status " +
+                "FROM bookings b " +
+                "JOIN guests g ON b.guest_id = g.guest_id " +
+                "WHERE b.check_in = ? " +
+                "ORDER BY b.booking_id";
+
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+
+            statement.setDate(1, java.sql.Date.valueOf(checkInDate));
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+
+                while (resultSet.next()) {
+
+                    Object[] row = {
+                            resultSet.getInt("booking_id"),
+                            resultSet.getString("full_name"),
+                            resultSet.getString("room_id"),
+                            resultSet.getDate("check_in"),
+                            resultSet.getDate("check_out"),
+                            resultSet.getInt("number_of_guests"),
+                            resultSet.getString("booking_status")
+                    };
+
+                    results.add(row);
+                }
+            }
+
+        } catch (SQLException e) {
+            System.out.println(
+                    "Error loading bookings by date: " + e.getMessage()
+            );
+        }
+
+        return results;
+    }
+
 }
