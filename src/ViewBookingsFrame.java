@@ -294,9 +294,93 @@ public class ViewBookingsFrame extends JFrame {
                     dateField.setText("");
                     showAllBookings.run();
 
+                    Booking updatedBooking = null;
+
+                    for (Booking booking : bookings) {
+                        if (booking.getBookingId() == bookingId) {
+                            updatedBooking = booking;
+                            break;
+                        }
+                    }
+
+                    if (updatedBooking == null) {
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "Booking updated successfully, but invoice could not be loaded."
+                        );
+                        return;
+                    }
+
+                    long nights =
+                            BookingBillCalculator.calculateNights(updatedBooking);
+
+                    double baseCharge =
+                            BookingBillCalculator.calculateBaseCharge(updatedBooking);
+
+                    double extraCharge =
+                            BookingBillCalculator.calculateExtraGuestCharge(updatedBooking);
+
+                    double discount =
+                            BookingBillCalculator.calculateDiscount(updatedBooking);
+
+                    double tax =
+                            BookingBillCalculator.calculateTax(updatedBooking);
+
+                    double total =
+                            BookingBillCalculator.calculateTotal(updatedBooking);
+
+                    double advance =
+                            BookingBillCalculator.getAdvancePayment();
+
+                    double balance =
+                            BookingBillCalculator.calculateRemainingBalance(updatedBooking);
+
+                    String invoice = String.format(
+                            "SMARTSTAY HOTEL - UPDATED BOOKING INVOICE%n%n" +
+                                    "Booking ID: %d%n" +
+                                    "Room ID: %s%n" +
+                                    "Room Type: %s%n" +
+                                    "Check-in: %s%n" +
+                                    "Check-out: %s%n" +
+                                    "Nights: %d%n" +
+                                    "Guests: %d%n%n" +
+                                    "Base Charge: LKR %,.2f%n" +
+                                    "Extra Guest Charges: LKR %,.2f%n" +
+                                    "Discount: LKR %,.2f%n" +
+                                    "Tax: LKR %,.2f%n" +
+                                    "Total Bill: LKR %,.2f%n" +
+                                    "Refundable Advance: LKR %,.2f%n" +
+                                    "Remaining Balance: LKR %,.2f",
+                            updatedBooking.getBookingId(),
+                            updatedBooking.getRoom().getRoomId(),
+                            updatedBooking.getRoom().getRoomType(),
+                            updatedBooking.getCheckInDate(),
+                            updatedBooking.getCheckOutDate(),
+                            nights,
+                            updatedBooking.getNumberOfGuests(),
+                            baseCharge,
+                            extraCharge,
+                            discount,
+                            tax,
+                            total,
+                            advance,
+                            balance
+                    );
+
+                    JTextArea invoiceArea = new JTextArea(invoice);
+                    invoiceArea.setEditable(false);
+                    invoiceArea.setFont(
+                            new Font(Font.MONOSPACED, Font.PLAIN, 13)
+                    );
+
+                    JScrollPane invoiceScroll = new JScrollPane(invoiceArea);
+                    invoiceScroll.setPreferredSize(new Dimension(450, 380));
+
                     JOptionPane.showMessageDialog(
                             this,
-                            "Booking updated successfully!"
+                            invoiceScroll,
+                            "Booking Updated Successfully - Invoice",
+                            JOptionPane.INFORMATION_MESSAGE
                     );
 
                 } else {
